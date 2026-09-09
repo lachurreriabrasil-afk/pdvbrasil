@@ -266,6 +266,14 @@ input,select,textarea{font-family:'Plus Jakarta Sans',sans-serif;}
  
  
 /* ── MOBILE (≤ 700px) ── */
+/* O segundo painel do slider fica fora do ecrã à direita. Sem isto o
+   telemóvel "encolhe" a página para caber (390px passavam a 441px) e a barra
+   flutuante do pedido saía do ecrã, ficando impossível de tocar.
+   clip não cria contentor de scroll (não estraga o position:sticky das abas);
+   hidden fica de reserva para browsers antigos. */
+html,body{overflow-x:hidden;}
+@supports (overflow-x:clip){ html,body{overflow-x:clip;} }
+
 @media(max-width:700px){
   /* nav compacta */
   .top-nav{padding:0 12px;height:52px;}
@@ -293,7 +301,9 @@ input,select,textarea{font-family:'Plus Jakarta Sans',sans-serif;}
  
   /* slider: dois painéis lado a lado, container com overflow hidden */
   .venda-slider{display:flex;width:100%;overflow:hidden;flex:1;min-height:0;}
-  .venda-slide{min-width:100%;width:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  .venda-track{display:flex;flex:0 0 200%;width:200%;min-height:0;
+               transition:transform .28s cubic-bezier(.4,0,.2,1);will-change:transform;}
+  .venda-slide{flex:0 0 50%;min-width:50%;width:50%;overflow-y:auto;-webkit-overflow-scrolling:touch;}
   .venda-slide#vslide-produtos{padding:12px 12px 80px;}
   .venda-slide.slide-cart#vslide-pedido{padding:0;overflow:hidden;display:flex;flex-direction:column;}
 
@@ -352,6 +362,7 @@ input,select,textarea{font-family:'Plus Jakarta Sans',sans-serif;}
   .venda-mobile-tabs{display:none;}
   .mobile-cart-bar{display:none;}
   .venda-slider{display:contents;}
+  .venda-track{display:contents;}
   #vslide-produtos{display:contents;}
   #vslide-pedido{display:contents;}
   #panel-venda.active{display:grid;grid-template-columns:1fr 340px;padding:28px;}
@@ -582,8 +593,12 @@ input,select,textarea{font-family:'Plus Jakarta Sans',sans-serif;}
  
       <!-- slider: duas vistas lado a lado -->
       <div class="venda-slider" id="venda-slider">
+        <!-- A pista é o que se desloca. O contentor de cima fica parado e é
+             quem recorta. Antes o transform estava no PRÓPRIO contentor que
+             tem overflow:hidden — ao deslocar-se, recortava-se a si mesmo e a
+             aba "Pedido" aparecia em branco no telemóvel. -->
+        <div class="venda-track" id="venda-track">
 
- 
         <!-- SLIDE 1: produtos -->
         <div class="venda-slide" id="vslide-produtos">
           <div class="venda-left">
@@ -631,6 +646,7 @@ input,select,textarea{font-family:'Plus Jakarta Sans',sans-serif;}
         </div>
 
  
+        </div><!-- /venda-track -->
       </div><!-- /venda-slider -->
 
  
@@ -1744,6 +1760,9 @@ function finalizarVenda(){
 function closeModalOk(){
   document.getElementById('modal-ok').classList.remove('show');
   renderCart();renderProducts();renderEstoque();
+  // No telemóvel, depois de fechar a venda voltar aos produtos: o carrinho
+  // está vazio e ficar nele obrigava a tocar na aba a cada venda.
+  if(window.innerWidth<=700&&_vendaTab==='pedido')switchVendaTab('produtos');
 }
 
  
@@ -2606,9 +2625,11 @@ var _vendaTab='produtos'; // 'produtos' | 'pedido'
 function switchVendaTab(tab){
   _vendaTab=tab;
   var slider=document.getElementById('venda-slider');
-  if(slider){
-    slider.style.transform=tab==='pedido'?'translateX(-100%)':'translateX(0)';
-    slider.style.transition='transform .28s cubic-bezier(.4,0,.2,1)';
+  if(slider)slider.style.transform='';           // limpa versões antigas
+  var track=document.getElementById('venda-track');
+  if(track){
+    // -50% da pista (que mede 200%) = exactamente uma largura de ecrã
+    track.style.transform=tab==='pedido'?'translateX(-50%)':'translateX(0)';
   }
   document.querySelectorAll('.vmt-tab').forEach(function(t){t.classList.remove('active');});
   var activeTab=document.getElementById('vmt-'+tab);
@@ -2675,7 +2696,10 @@ window.addEventListener('resize',function(){
   if(window.innerWidth>700){
     var slider=document.getElementById('venda-slider');
     if(slider)slider.style.transform='';
+    var track=document.getElementById('venda-track');
+    if(track)track.style.transform='';
     document.body.classList.remove('cart-view');
+    _vendaTab='produtos';
   }
   updateMobileCartBar();
 });
