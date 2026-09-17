@@ -320,13 +320,25 @@ function estoqueDe(d){
   return Math.max(0,produzido-vendido);
 }
 
+// Mesmo corte do PDV: o dia só vira às 02:00, para o turno da noite
+// (08:00 até depois da meia-noite) contar todo para o dia que começou.
+const HORA_CORTE_DIA=2;
+function inicioDiaOp(d){
+  const x=new Date(d||new Date());
+  if(x.getHours()<HORA_CORTE_DIA)x.setDate(x.getDate()-1);
+  x.setHours(HORA_CORTE_DIA,0,0,0);
+  return x;
+}
+function diaOperativo(d){
+  const i=inicioDiaOp(d);
+  return new Date(i.getTime()-i.getTimezoneOffset()*60000).toISOString().slice(0,10);
+}
 function limitesPeriodo(){
-  const now=new Date();
-  const hoje=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-  if(periodo==='hoje')  return [hoje,null];
-  if(periodo==='ontem') return [new Date(hoje.getTime()-86400000),hoje];
-  if(periodo==='7dias') return [new Date(hoje.getTime()-6*86400000),null];
-  if(periodo==='mes')   return [new Date(now.getFullYear(),now.getMonth(),1),null];
+  const ini=inicioDiaOp();
+  if(periodo==='hoje')  return [ini,null];
+  if(periodo==='ontem') return [new Date(ini.getTime()-86400000),ini];
+  if(periodo==='7dias') return [new Date(ini.getTime()-6*86400000),null];
+  if(periodo==='mes')   return [new Date(ini.getFullYear(),ini.getMonth(),1,HORA_CORTE_DIA,0,0,0),null];
   return [null,null];
 }
 function noPeriodo(iso){
@@ -564,12 +576,15 @@ function desenharLojas(linhas){
         </div></div>`;
     }
     const m=r.m;
+    const diaTurno=m.turno?(m.turno.diaOp||diaOperativo(new Date(m.turno.abertura))):null;
+    const turnoVelho=!!(diaTurno&&diaTurno!==diaOperativo());
     const turno=m.turno
-      ? `🟢 ${esc(m.turno.func)} · aberto desde ${new Date(m.turno.abertura).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`
+      ? `${turnoVelho?'🌙':'🟢'} ${esc(m.turno.func)} · aberto desde ${new Date(m.turno.abertura).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}`
       : '⚪ Caixa fechado';
     const totalPag=METODOS.reduce((a,x)=>a+m.metodos[x.k],0);
     const cls=m.estoque<=0?'out':m.estoque<10?'low':'';
     let alertas='';
+    if(turnoVelho)alertas+=`<div class="alerta crit"><span>🌙</span><span>Caixa aberto desde outro dia — ninguém fechou o turno. A contagem vai pedir o dinheiro dos dois dias.</span></div>`;
     if(m.estoque<=0)alertas+=`<div class="alerta crit"><span>🚫</span><span>Sem estoque — não dá para vender</span></div>`;
     else if(m.estoque<10)alertas+=`<div class="alerta warn"><span>⚠️</span><span>Estoque baixo: ${m.estoque} churros</span></div>`;
     if(m.churrosTirados>0)alertas+=`<div class="alerta crit"><span>🔎</span><span>${m.churrosTirados} churros retirados à mão em ${m.ajustes} correção${m.ajustes!==1?'ões':''}</span></div>`;
