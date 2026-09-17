@@ -704,22 +704,6 @@ html,body{overflow-x:hidden;}
           <div class="info-note">ℹ️ Use quando o número na tela não bate com o que está na bancada. Fica registado como ajuste.</div>
         </div>
       </div>
-      <div class="stock-section">
-        <h3>🍫 Estoque de Barras de Chocolate</h3>
-        <div id="choc-stock-row"></div>
-        <div class="add-stock-card">
-          <h4>Adicionar barras de chocolate</h4>
-          <div class="add-row">
-            <div class="field"><label>Quantidade de barras</label><input id="inp-prod-choc" type="number" placeholder="Ex: 40" min="1"></div>
-            <button class="btn-add" onclick="addChocStock()">Adicionar</button>
-          </div>
-          <div class="info-note">ℹ️ Cada copo de Chocolate Quente consome <strong>4 barras</strong></div>
-          <div class="add-row" style="margin-top:10px;">
-            <div class="field"><label>Corrigir: barras que existem AGORA</label><input id="inp-conta-choc" type="number" placeholder="Ex: 40" min="0"></div>
-            <button class="btn-add" onclick="ajustarBarras()">Corrigir</button>
-          </div>
-        </div>
-      </div>
     </div>
 
  
@@ -947,7 +931,6 @@ const DEF_PRODUCTS = [
   {id:'p3',emoji:'🍦',name:'Churro Creme Baunilha',   price:9.00, type:'churro'},
   {id:'p4',emoji:'🫙',name:'Churro Nutella',          price:10.00,type:'churro'},
   {id:'p5',emoji:'✨',name:'Churro Tradicional',      price:7.00, type:'churro'},
-  {id:'p6',emoji:'☕',name:'Chocolate Quente',        price:12.00,type:'choc'},
   {id:'p7',emoji:'🎉',name:'Promoção 2 Churros',       price:15.00,type:'churro',stockQty:2,isPromo:true},
   {id:'p8',emoji:'🎊',name:'Promoção 3 Churros',       price:20.00,type:'churro',stockQty:3,isPromo:true,promoSlots:3},
 ];
@@ -964,12 +947,10 @@ function defSt(){return{
   // stockEntries é a fonte da verdade (lista append-only, fusionável entre
   // dispositivos). stockChurros/soldChurros/etc. passaram a ser espelhos
   // CALCULADOS por recomputeDerived() — nunca se somam "à mão".
-  stockEntries:[],   // [{id,kind:'churro'|'choc',qty,ts,func}]
-  baseline:{churrosProduzidos:0,churrosVendidos:0,chocBarras:0,chocCopos:0},
+  stockEntries:[],   // [{id,kind:'churro',qty,ts,func}]
+  baseline:{churrosProduzidos:0,churrosVendidos:0},
   stockChurros:0,    // (derivado) total produzido
   soldChurros:0,     // (derivado) churros vendidos
-  stockChocBars:0,   // (derivado) barras compradas
-  soldChocCups:0,    // (derivado) copos vendidos
   // caixa
   cart:[],pays:[],
   totalByMethod:{pix:0,debito:0,credito:0,dinheiro:0}, // (derivado) do turno atual
@@ -1057,30 +1038,21 @@ const LOG_ICONE={
 function unidadesChurro(items){
   return (items||[]).reduce((a,i)=>{
     const p=getProd(i.pid);
-    const tipo=p?p.type:i.type;
+    const tipo=(p?p.type:i.type)||'churro';   // churro é o único tipo que resta
     const mult=p?(p.stockQty||1):(i.stockQty||1);
     return tipo==='churro'?a+i.qty*mult:a;
-  },0);
-}
-function coposChoc(items){
-  return (items||[]).reduce((a,i)=>{
-    const p=getProd(i.pid);
-    const tipo=p?p.type:i.type;
-    return tipo==='choc'?a+i.qty:a;
   },0);
 }
 function recomputeDerived(){
   if(!st)return;
   if(!st.stockEntries)st.stockEntries=[];
-  if(!st.baseline)st.baseline={churrosProduzidos:0,churrosVendidos:0,chocBarras:0,chocCopos:0};
+  if(!st.baseline)st.baseline={churrosProduzidos:0,churrosVendidos:0};
   if(!st.allSales)st.allSales=[];
   const b=st.baseline;
   st.stockChurros=(b.churrosProduzidos||0)+st.stockEntries.filter(e=>e.kind==='churro').reduce((a,e)=>a+(e.qty||0),0);
-  st.stockChocBars=(b.chocBarras||0)+st.stockEntries.filter(e=>e.kind==='choc').reduce((a,e)=>a+(e.qty||0),0);
   const corte=st.migradoEm?Date.parse(st.migradoEm):0;
   const vivas=st.allSales.filter(s=>!s.voided&&(!corte||Date.parse(s.dateISO)>=corte));
   st.soldChurros=(b.churrosVendidos||0)+vivas.reduce((a,s)=>a+unidadesChurro(s.items),0);
-  st.soldChocCups=(b.chocCopos||0)+vivas.reduce((a,s)=>a+coposChoc(s.items),0);
   // Caixa do TURNO ATUAL apenas (antes era um acumulador global que se zerava
   // sozinho quando outro aparelho abria turno).
   const tm={pix:0,debito:0,credito:0,dinheiro:0};
@@ -1128,9 +1100,7 @@ function migrarSt(){
     // da migração e o histórico anterior fica congelado na baseline.
     st.baseline={
       churrosProduzidos:st.stockChurros||0,
-      chocBarras:st.stockChocBars||0,
-      churrosVendidos:st.soldChurros||0,
-      chocCopos:st.soldChocCups||0
+      churrosVendidos:st.soldChurros||0
     };
     st.migradoEm=new Date().toISOString();
     if(!Array.isArray(st.stockEntries))st.stockEntries=[];
@@ -1141,7 +1111,15 @@ function migrarSt(){
   // seja descontado do estoque e bloqueie as vendas.
   if(st._migrado&&!st.migradoEm)st.migradoEm=new Date().toISOString();
   if(!st.stockEntries)st.stockEntries=[];
-  if(!st.baseline)st.baseline={churrosProduzidos:0,churrosVendidos:0,chocBarras:0,chocCopos:0};
+  if(!st.baseline)st.baseline={churrosProduzidos:0,churrosVendidos:0};
+  // O Chocolate Quente e as barras saíram do sistema. Qualquer produto de
+  // chocolate que ainda venha da nuvem é retirado do catálogo e fica com
+  // lápide, para não voltar a aparecer. As vendas antigas ficam no histórico.
+  (st.products||[]).filter(p=>p.type==='choc').forEach(p=>{
+    if(st.deletedProducts.indexOf(p.id)<0)st.deletedProducts.push(p.id);
+  });
+  st.products=(st.products||[]).filter(p=>p.type!=='choc');
+  st.stockEntries=(st.stockEntries||[]).filter(e=>e.kind!=='choc');
   recomputeDerived();
 }
 
@@ -1197,7 +1175,7 @@ function fbPayload(){
     deletedProducts:st.deletedProducts||[],
     auditLog:st.auditLog||[],
     stockEntries:st.stockEntries||[],
-    baseline:st.baseline||{churrosProduzidos:0,churrosVendidos:0,chocBarras:0,chocCopos:0},
+    baseline:st.baseline||{churrosProduzidos:0,churrosVendidos:0},
     allSales:st.allSales||[],
     currentTurn:st.currentTurn||null
   };
@@ -1235,9 +1213,7 @@ function mergeDocs(A,B){
   const jaMigrado=(A._migrado&&B._migrado)||(A._migrado&&!B.stockChurros&&!B.soldChurros)||(B._migrado&&!A.stockChurros&&!A.soldChurros);
   const legado=jaMigrado?{}:{
     stockChurros:Math.max(A.stockChurros||0,B.stockChurros||0),
-    soldChurros:Math.max(A.soldChurros||0,B.soldChurros||0),
-    stockChocBars:Math.max(A.stockChocBars||0,B.stockChocBars||0),
-    soldChocCups:Math.max(A.soldChocCups||0,B.soldChocCups||0)
+    soldChurros:Math.max(A.soldChurros||0,B.soldChurros||0)
   };
   return Object.assign({
     _rev:Math.max(revA,revB), _dev:S._dev||A._dev||B._dev, _savedAt:Date.now(),
@@ -1268,8 +1244,6 @@ function applyRemote(data){
   if(!data._migrado){
     st.stockChurros=data.stockChurros||0;
     st.soldChurros=data.soldChurros||0;
-    st.stockChocBars=data.stockChocBars||0;
-    st.soldChocCups=data.soldChocCups||0;
   }
   if(typeof data._rev==='number'&&data._rev>_rev)_rev=data._rev;
   migrarSt();
@@ -1560,14 +1534,13 @@ function showPanel(name,btn){
 // STOCK HELPERS
 // ════════════════════════════════════════
 function churrosDisp(){return Math.max(0,st.stockChurros-st.soldChurros);}
-function chocDisp(){return Math.max(0,Math.floor((st.stockChocBars-st.soldChocCups*4)/4));}
 
  
 // ════════════════════════════════════════
 // PRODUTOS RENDER
 // ════════════════════════════════════════
 function renderProducts(){
-  const ca=churrosDisp(), ccd=chocDisp();
+  const ca=churrosDisp();
   // update banner
   const cnt=document.getElementById('sb-count');
   cnt.textContent=ca;
@@ -1575,7 +1548,7 @@ function renderProducts(){
 
  
   document.getElementById('products-grid').innerHTML=st.products.map(p=>{
-    const avail=p.type==='choc'?ccd:ca;
+    const avail=ca;
     const out=avail<=0;
     let tc='tag-ok',tt='✓ '+avail+' un';
     if(out){tc='tag-out';tt='✗ Sem estoque';}
@@ -1600,7 +1573,7 @@ function addToCart(pid){
   const sqty=p.stockQty||1;
   const inCartUnits=st.cart.filter(i=>{const pp=st.products.find(x=>x.id===i.pid);return pp&&pp.type===p.type;})
     .reduce((a,i)=>{const pp=st.products.find(x=>x.id===i.pid);return a+i.qty*(pp.stockQty||1);},0);
-  const avail=p.type==='choc'?chocDisp():churrosDisp();
+  const avail=churrosDisp();
   if(inCartUnits+sqty>avail){toast('⚠️ Sem estoque suficiente!');return;}
   // promo: open flavor picker
   if(p.isPromo){openPromoModal(pid);return;}
@@ -1869,17 +1842,16 @@ function addStockEntry(kind,inputId,label){
   const n=Math.floor(numBR(document.getElementById(inputId).value));
   if(!isFinite(n)||n<=0){toast('⚠️ Quantidade inválida.');return;}
   if(n>100000){toast('⚠️ Quantidade demasiado alta.');return;}
-  const antesE=(kind==='churro')?churrosDisp():Math.max(0,st.stockChocBars-st.soldChocCups*4);
+  const antesE=churrosDisp();
   st.stockEntries.push({id:uid('S'),kind,qty:n,ts:Date.now(),func:st.currentTurn?st.currentTurn.func:'—'});
   recomputeDerived();
-  const depoisE=(kind==='churro')?churrosDisp():Math.max(0,st.stockChocBars-st.soldChocCups*4);
+  const depoisE=churrosDisp();
   logAudit('estoque_entrada','Produção registada: +'+n+' '+label,
     {antes:antesE, depois:depoisE, delta:n, kind});
   document.getElementById(inputId).value='';
   saveSt();renderEstoque();renderProducts();toast('✅ '+n+' '+label+' adicionados!');
 }
 function addChurroStock(){addStockEntry('churro','inp-prod-churro','churros');}
-function addChocStock(){addStockEntry('choc','inp-prod-choc','barras');}
 
 // Ajuste por contagem física: grava a DIFERENÇA como uma entrada de estoque,
 // para que o histórico continue a bater e a fusão entre aparelhos continue a
@@ -1904,35 +1876,22 @@ function ajustarEstoque(kind,inputId,atual,label){
   toast('✅ Estoque corrigido para '+alvo+' '+label+'.');
 }
 function ajustarChurros(){ajustarEstoque('churro','inp-conta-churro',churrosDisp(),'churros');}
-function ajustarBarras(){
-  var barrasDisp=Math.max(0,st.stockChocBars-st.soldChocCups*4);
-  ajustarEstoque('choc','inp-conta-choc',barrasDisp,'barras');
-}
+
 
  
 function renderEstoque(){
-  var ca=churrosDisp(),ccd=chocDisp();
-  var barrasUsadas=st.soldChocCups*4;
-  var barrasDisp=Math.max(0,st.stockChocBars-barrasUsadas);
+  var ca=churrosDisp();
   var pct=st.stockChurros>0?Math.min(100,Math.max(0,100-(st.soldChurros/st.stockChurros)*100)):0;
   document.getElementById('stock-chips').innerHTML=
     '<div class="stat-chip"><div class="sc-lbl">Churros disponíveis</div><div class="sc-val'+(ca<=0?' red':ca<10?' amber':'')+'">'+(ca)+'</div><div class="sc-sub">de '+st.stockChurros+' produzidos</div></div>'+
     '<div class="stat-chip"><div class="sc-lbl">Churros vendidos</div><div class="sc-val green">'+st.soldChurros+'</div><div class="sc-sub">todas as variedades</div></div>'+
-    '<div class="stat-chip"><div class="sc-lbl">Choc. Quente possíveis</div><div class="sc-val'+(ccd<=0?' red':ccd<3?' amber':'')+'">'+(ccd)+'</div><div class="sc-sub">'+barrasDisp+' barras restantes</div></div>'+
-    '<div class="stat-chip"><div class="sc-lbl">Barras usadas</div><div class="sc-val amber">'+barrasUsadas+'</div><div class="sc-sub">'+st.soldChocCups+' copos vendidos</div></div>';
+    '<div class="stat-chip"><div class="sc-lbl">Total produzido</div><div class="sc-val">'+st.stockChurros+'</div><div class="sc-sub">desde sempre</div></div>';
   document.getElementById('churro-stock-single').innerHTML=
     '<div class="psr"><span class="psr-emoji">🥐</span><div class="psr-info">'+
     '<div class="psr-name">Estoque Geral — todos os sabores</div>'+
     '<div class="psr-sub">'+st.soldChurros+' vendidos · '+ca+' restantes · qualquer sabor desconta 1 unidade</div>'+
     '<div class="psr-bar"><div class="psr-bar-fill'+(ca<10?' low':'')+(ca<=0?' out':'')+'" style="width:'+pct+'%"></div></div>'+
     '</div><div class="psr-nums"><div class="psr-total'+(ca<=0?' out':ca<10?' low':'')+'">'+ca+'</div><div class="psr-sold">disponíveis</div></div></div>';
-  var bPct=st.stockChocBars>0?Math.min(100,(barrasUsadas/st.stockChocBars)*100):0;
-  document.getElementById('choc-stock-row').innerHTML=
-    '<div class="psr"><span class="psr-emoji">☕</span><div class="psr-info">'+
-    '<div class="psr-name">Chocolate Quente</div>'+
-    '<div class="psr-sub">'+st.soldChocCups+' copos vendidos · '+barrasUsadas+' barras consumidas</div>'+
-    '<div class="psr-bar"><div class="psr-bar-fill'+(ccd<3?' low':'')+(ccd<=0?' out':'')+'" style="width:'+Math.max(0,100-bPct)+'%"></div></div>'+
-    '</div><div class="psr-nums"><div class="psr-total">'+ccd+'</div><div class="psr-sold">copos poss.</div></div></div>';
 }
 
  
@@ -1942,14 +1901,9 @@ function renderEstoque(){
 function renderProdsList(){
   document.getElementById('prods-list').innerHTML=st.products.map(p=>{
     // Quantos churros o produto tira do estoque. É o que faz a "Promoção 3
-    // Churros" descontar 3 e não 1. Só se aplica aos produtos de churro —
-    // o Chocolate Quente consome 4 barras por copo.
-    const ehChurro=p.type==='churro';
-    const campoDesconto=ehChurro
-      ? `<div class="field"><label>Desconta do estoque (un)</label>
-           <input id="pq-${p.id}" type="text" inputmode="numeric" value="${p.stockQty||1}"></div>`
-      : `<div class="field"><label>Desconta do estoque</label>
-           <div style="font-size:12px;color:var(--text3);padding:10px 0;">4 barras por copo</div></div>`;
+    // Churros" descontar 3 e não 1.
+    const campoDesconto=`<div class="field"><label>Desconta do estoque (un)</label>
+           <input id="pq-${p.id}" type="text" inputmode="numeric" value="${p.stockQty||1}"></div>`;
     return `<div class="prod-edit-card">
       <span class="pec-emoji">${p.emoji}</span>
       <div class="pec-fields">
@@ -2000,7 +1954,7 @@ function saveProd(pid){
   saveSt();
   const ok=document.getElementById('sok-'+pid);if(ok){ok.style.display='block';setTimeout(()=>ok.style.display='none',2000);}
   renderProducts();renderProdsList();
-  toast('✅ '+name+' salvo · desconta '+(p.type==='churro'?stockQty+' churro'+(stockQty>1?'s':''):'4 barras'));
+  toast('✅ '+name+' salvo · desconta '+stockQty+' churro'+(stockQty>1?'s':''));
 }
 
 
