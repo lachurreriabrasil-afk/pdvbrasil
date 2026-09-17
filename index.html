@@ -192,6 +192,23 @@ input,select,textarea{font-family:'Plus Jakarta Sans',sans-serif;}
 .hist-top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .btn-export{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 14px;font-size:12px;font-weight:600;color:var(--text2);transition:.2s;display:flex;align-items:center;gap:6px;}
 .btn-export:hover{border-color:var(--sky);color:var(--sky-dark);}
+.tv-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px 16px;background:var(--bg,#f4f8fb);}
+.tv-card{background:var(--surface);border:1px solid var(--border);border-top:5px solid var(--amber,#f59e0b);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:34px 30px;max-width:520px;width:100%;text-align:center;}
+.tv-ico{font-size:40px;line-height:1;}
+.tv-h{font-size:21px;font-weight:700;margin:14px 0 10px;}
+.tv-p{font-size:13.5px;color:var(--text2);line-height:1.6;margin-bottom:22px;}
+.tv-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;}
+.tv-nums>div{background:var(--surface2,#eef5fa);border-radius:var(--radius-sm);padding:13px 8px;}
+.tv-lbl{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;}
+.tv-val{font-size:16px;font-weight:700;margin-top:5px;font-variant-numeric:tabular-nums;}
+.btn-tv-primary{width:100%;background:var(--sky,#0ea5e9);color:#fff;border:none;border-radius:var(--radius-sm);
+  padding:15px;font-size:14.5px;font-weight:700;cursor:pointer;margin-bottom:10px;}
+.btn-tv-primary:hover{filter:brightness(.93);}
+.btn-tv-ghost{width:100%;background:none;border:1.5px solid var(--border);color:var(--text2);
+  border-radius:var(--radius-sm);padding:13px;font-size:13.5px;font-weight:600;cursor:pointer;}
+.tv-nota{font-size:11.5px;color:var(--text3);line-height:1.5;margin-top:16px;}
+@media(max-width:700px){.tv-card{padding:26px 20px;}.tv-nums{grid-template-columns:1fr;}}
 .estoque-hero{flex:1 1 100%;width:100%;background:var(--surface);border:1px solid var(--border);border-top:5px solid var(--sky,#0ea5e9);
   border-radius:var(--radius);box-shadow:var(--shadow);padding:30px 20px 26px;text-align:center;}
 .estoque-hero.low{border-top-color:var(--amber,#f59e0b);}
@@ -790,6 +807,25 @@ html,body{overflow-x:hidden;}
 
  
 <!-- ══ FECHAMENTO ══ -->
+<div id="sc-turno-velho" class="screen">
+  <div class="tv-wrap">
+    <div class="tv-card">
+      <div class="tv-ico">🌙</div>
+      <h2 class="tv-h">Este caixa ficou aberto de outro dia</h2>
+      <p class="tv-p">O turno de <strong id="tv-func">—</strong> começou em <strong id="tv-dia">—</strong>, às <strong id="tv-abertura">—</strong>, e nunca foi fechado.<br>
+      Antes de vender hoje ele precisa ser encerrado — senão a contagem de caixa vai pedir o dinheiro dos dois dias juntos.</p>
+      <div class="tv-nums">
+        <div><div class="tv-lbl">Vendas do turno</div><div class="tv-val" id="tv-vendas">—</div></div>
+        <div><div class="tv-lbl">Faturamento</div><div class="tv-val" id="tv-total">—</div></div>
+        <div><div class="tv-lbl">Dinheiro esperado</div><div class="tv-val" id="tv-dinheiro">—</div></div>
+      </div>
+      <button class="btn-tv-primary" onclick="fecharTurnoVelhoComContagem()">Fechar contando o caixa</button>
+      <button class="btn-tv-ghost" onclick="fecharTurnoVelhoAuto()">Fechar sem contar</button>
+      <p class="tv-nota">Fechar sem contar registra o turno como encerrado automaticamente e fica marcado no Log. As vendas continuam guardadas no dia a que pertencem.</p>
+    </div>
+  </div>
+</div>
+
 <div id="sc-fechamento" class="screen">
   <div class="fech-card">
     <div class="fech-icon">✅</div>
@@ -987,6 +1023,28 @@ function uid(prefix){
   return (prefix||'')+Date.now().toString(36)+'_'+devId()+'_'+_uidSeq.toString(36)+Math.random().toString(36).slice(2,6);
 }
 
+// ── Dia operativo ──────────────────────────────────────────────
+// O turno vai das 08:00 até à meia-noite, mas ainda pode entrar alguém às
+// 00:30. Se o dia virasse às 00:00, essas vendas caíam no dia seguinte e
+// misturavam-se com o turno que abre às 08:00. Por isso o dia só vira às
+// 02:00: tudo o que se vende até lá pertence ao dia que começou de manhã.
+const HORA_CORTE_DIA=2;
+function inicioDiaOp(d){
+  const x=new Date(d||new Date());
+  if(x.getHours()<HORA_CORTE_DIA)x.setDate(x.getDate()-1);
+  x.setHours(HORA_CORTE_DIA,0,0,0);
+  return x;
+}
+function diaOperativo(d){
+  const i=inicioDiaOp(d);
+  return new Date(i.getTime()-i.getTimezoneOffset()*60000).toISOString().slice(0,10);
+}
+function rotuloDiaOp(dia){
+  const [y,m,d]=String(dia||'').split('-').map(Number);
+  if(!y)return dia||'—';
+  return new Date(y,m-1,d).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+}
+
 // ── Números com vírgula (Brasil) ───────────────────────────────
 // parseFloat('10,50') = 10 e, num <input type=number>, o Chrome descarta a
 // vírgula por completo → o campo lia 0. Os placeholders diziam "0,00".
@@ -1033,12 +1091,14 @@ function logAudit(tipo, desc, extra){
 const LOG_GRUPO={
   estoque_entrada:'estoque', estoque_ajuste:'estoque',
   venda_editada:'vendas', venda_cancelada:'vendas',
-  produto_alterado:'produtos', produto_criado:'produtos', produto_excluido:'produtos'
+  produto_alterado:'produtos', produto_criado:'produtos', produto_excluido:'produtos',
+  turno_auto:'vendas'
 };
 const LOG_ICONE={
   estoque_entrada:'📦', estoque_ajuste:'⚠️',
   venda_editada:'✏️', venda_cancelada:'🚫',
-  produto_alterado:'🏷️', produto_criado:'➕', produto_excluido:'🗑'
+  produto_alterado:'🏷️', produto_criado:'➕', produto_excluido:'🗑',
+  turno_auto:'🌙'
 };
 
 // ── Estado derivado ────────────────────────────────────────────
@@ -1500,15 +1560,43 @@ function abrirCaixa(){
   const cv=document.getElementById('ab-caixa').value;
   const caixa=numBR(cv);
   if(cv.trim()!==''&&(isNaN(caixa)||caixa<0)){toast('⚠️ Valor de abertura inválido.');return;}
-  st.currentTurn={id:uid('T'),dev:devId(),func,abertura:new Date().toISOString(),caixaInicial:r2(caixa||0)};
+  st.currentTurn={id:uid('T'),dev:devId(),func,abertura:new Date().toISOString(),
+                  diaOp:diaOperativo(),caixaInicial:r2(caixa||0)};
   st.cart=[];st.pays=[];
   esconderConviteTurno();
   saveSt();initPDV();showScreen('sc-pdv');
 }
 
  
+// O turno pertence a um dia operativo anterior? Então alguém esqueceu de
+// fechar: continuar a vender nele faz a caixa esperar dois dias de dinheiro.
+function turnoDeOutroDia(t){
+  t=t||(st?st.currentTurn:null);
+  if(!t)return false;
+  const dia=t.diaOp||diaOperativo(new Date(t.abertura));
+  return dia!==diaOperativo();
+}
+function diaDoTurno(t){
+  t=t||st.currentTurn; if(!t)return '';
+  return t.diaOp||diaOperativo(new Date(t.abertura));
+}
+
+function mostrarTurnoVelho(){
+  const t=st.currentTurn; if(!t)return;
+  const vs=vendasDoTurno(t);
+  const dinheiro=vs.reduce((a,s)=>a+(s.payDetail&&s.payDetail.dinheiro||0),0);
+  document.getElementById('tv-func').textContent=t.func;
+  document.getElementById('tv-dia').textContent=rotuloDiaOp(diaDoTurno(t));
+  document.getElementById('tv-abertura').textContent=fmtTime(new Date(t.abertura));
+  document.getElementById('tv-vendas').textContent=vs.length+(vs.length===1?' venda':' vendas');
+  document.getElementById('tv-total').textContent='R$ '+fN(vs.reduce((a,s)=>a+s.total,0));
+  document.getElementById('tv-dinheiro').textContent='R$ '+fN((t.caixaInicial||0)+dinheiro);
+  showScreen('sc-turno-velho');
+}
+
 function initPDV(){
   if(!st.currentTurn){showScreen('sc-abertura');return;}
+  if(turnoDeOutroDia()){mostrarTurnoVelho();return;}
   // Cada turno começa a ver o SEU histórico, não o do turno anterior.
   histFilter='turno';
   document.querySelectorAll('.hist-filter').forEach(function(b,i){b.classList.toggle('active',i===0);});
@@ -1518,8 +1606,23 @@ function initPDV(){
 }
 
  
+// Se o aparelho ficar ligado e o dia operativo virar (02:00), o ecrã de venda
+// tem de bloquear sozinho em vez de continuar a aceitar vendas no turno velho.
+let _guardaTurno=null;
+function iniciarGuardaTurno(){
+  if(_guardaTurno)return;
+  _guardaTurno=setInterval(function(){
+    try{
+      if(!st||!st.currentTurn)return;
+      var pdvAtivo=document.getElementById('sc-pdv').classList.contains('active');
+      if(pdvAtivo&&turnoDeOutroDia()&&!document.querySelector('.modal.show'))mostrarTurnoVelho();
+    }catch(e){}
+  },60000);
+}
+
 let _clockTimer=null;
 function startClock(){
+  iniciarGuardaTurno();
   const tick=()=>{const el=document.getElementById('nav-clock');if(el)el.textContent=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});};
   tick();
   // ANTES: cada chamada a initPDV() criava mais um setInterval — ao fim do dia
@@ -1582,6 +1685,7 @@ function renderProducts(){
 // ════════════════════════════════════════
 function addToCart(pid){
   if(!st.currentTurn){toast('⚠️ Abra o caixa antes de vender.');return;}
+  if(turnoDeOutroDia()){mostrarTurnoVelho();return;}
   const p=getProd(pid);
   if(!p){toast('⚠️ Esse produto já não existe.');renderProducts();return;}
   const sqty=p.stockQty||1;
@@ -1789,6 +1893,7 @@ function finalizarVenda(){
   // descontava o estoque e somava o pagamento e SÓ DEPOIS rebentava ao ler
   // st.currentTurn.func — ficava estoque descontado sem venda registada.
   if(!st.currentTurn){toast('⚠️ O caixa está fechado. Abra o caixa para vender.');showScreen('sc-abertura');return;}
+  if(turnoDeOutroDia()){mostrarTurnoVelho();return;}
   if(!st.cart.length){toast('⚠️ Carrinho vazio.');return;}
   if(!st.pays.length){toast('⚠️ Escolha a forma de pagamento.');return;}
   if(st.cart.some(i=>!getProd(i.pid))){st.cart=st.cart.filter(i=>getProd(i.pid));renderCart();renderProducts();toast('⚠️ Um produto do pedido já não existe — confira.');return;}
@@ -2322,6 +2427,46 @@ function buildFechResumo(){
 }
 
  
+// Fechar o turno velho contando a gaveta: entra no fluxo normal de fecho.
+function fecharTurnoVelhoComContagem(){
+  if(!st.currentTurn)return showScreen('sc-abertura');
+  showScreen('sc-pdv');
+  initPDVsemGuarda();
+  irParaFechamento();
+}
+// Como initPDV bloqueia turnos de outro dia, o fecho precisa de uma entrada
+// que não volte a bloquear.
+function initPDVsemGuarda(){
+  if(!st.currentTurn)return;
+  histFilter='turno';
+  document.querySelectorAll('.hist-filter').forEach(function(b,i){b.classList.toggle('active',i===0);});
+  document.getElementById('nav-emp').textContent='👤 '+st.currentTurn.func;
+  startClock();renderProducts();renderCart();renderEstoque();renderProdsList();renderHistorico();renderLog();
+}
+// Fechar sem contar: fica registado como encerramento automático.
+function fecharTurnoVelhoAuto(){
+  const t=st.currentTurn; if(!t)return showScreen('sc-abertura');
+  if(!confirm('Encerrar o turno de '+t.func+' de '+rotuloDiaOp(diaDoTurno(t))+' sem contar o caixa?\n\nFica registado no Log como fecho automático.'))return;
+  const vs=vendasDoTurno(t);
+  const dinheiro=vs.reduce((a,s)=>a+(s.payDetail&&s.payDetail.dinheiro||0),0);
+  t._fechadoEm=new Date().toISOString();
+  t._automatico=true;
+  t._espDinheiro=r2((t.caixaInicial||0)+dinheiro);
+  const snapshot=JSON.parse(JSON.stringify(t));
+  const ids=vs.map(s=>s.id);
+  st.allSales.forEach(s=>{if(ids.indexOf(s.id)>=0)s._turnSnapshot=snapshot;});
+  logAudit('turno_auto',
+    'Turno de '+t.func+' ('+rotuloDiaOp(diaDoTurno(t))+') encerrado sem contagem de caixa',
+    {ref:t.id, antes:'aberto desde '+fmtTime(new Date(t.abertura)),
+     depois:'encerrado automaticamente', valor:vs.reduce((a,s)=>a+s.total,0)});
+  _fechamentoProprio=Date.now();
+  st.currentTurn=null;st.cart=[];st.pays=[];
+  esconderConviteTurno();
+  saveSt();
+  showScreen('sc-abertura');
+  toast('Turno anterior encerrado. Abra o caixa de hoje.');
+}
+
 function pedirFechamento(){document.getElementById('modal-fechar').classList.add('show');}
 function irParaFechamento(){
   document.getElementById('modal-fechar').classList.remove('show');
@@ -2563,12 +2708,15 @@ function filteredSales(){
     var t=st.currentTurn;
     return st.allSales.filter(function(s){return s.turnId===t.id;});
   }
-  var now=new Date(),today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  // Os dias aqui são dias OPERATIVOS: começam às 02:00 e vão até às 02:00 do
+  // dia seguinte, para o turno da noite não ficar partido ao meio.
+  var ini=inicioDiaOp();
+  var mesIni=new Date(ini.getFullYear(),ini.getMonth(),1,HORA_CORTE_DIA,0,0,0);
   var sales=st.allSales.filter(function(s){
     var d=new Date(s.dateISO);
-    if(histFilter==='hoje')return d>=today;
-    if(histFilter==='semana')return d>=new Date(today.getTime()-6*86400000);
-    if(histFilter==='mes')return d>=new Date(today.getFullYear(),today.getMonth(),1);
+    if(histFilter==='hoje')return d>=ini;
+    if(histFilter==='semana')return d>=new Date(ini.getTime()-6*86400000);
+    if(histFilter==='mes')return d>=mesIni;
     return true;
   });
   if(histFilter==='tudo'){
