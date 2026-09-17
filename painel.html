@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Central de Controle — Churros</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --surface-0:#f4f8fb; --surface-1:#ffffff; --surface-2:#eef5fa;
+  --border:#dde7ef; --border-strong:#c3d4e0;
+  --text-primary:#0f2233; --text-secondary:#4a6274; --text-muted:#8199ab;
+  --sky:#0ea5e9; --sky-dark:#0369a1; --sky-pale:#e6f4fc;
+  /* paleta categórica validada (light) — métodos de pagamento */
+  --pay-1:#2a78d6; --pay-2:#eb6834; --pay-3:#1baf7a; --pay-4:#eda100;
+  /* sequencial azul, para a magnitude por loja */
+  --seq:#2a78d6; --seq-soft:#cde2fb;
+  /* estado */
+  --good:#0ca30c; --warning:#fab219; --serious:#ec835a; --critical:#d03b3b;
+  --radius:16px; --radius-sm:10px;
+  --shadow:0 1px 2px rgba(15,34,51,.05),0 6px 20px rgba(15,34,51,.06);
+}
+@media(prefers-color-scheme:dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme:dark;
+    --surface-0:#121417; --surface-1:#1a1d21; --surface-2:#232830;
+    --border:#2e343d; --border-strong:#3d454f;
+    --text-primary:#f2f6f9; --text-secondary:#aebecb; --text-muted:#7e909f;
+    --sky:#38b6f0; --sky-dark:#7dd3fc; --sky-pale:#16323f;
+    --pay-1:#3987e5; --pay-2:#d95926; --pay-3:#199e70; --pay-4:#c98500;
+    --seq:#3987e5; --seq-soft:#184f95;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --surface-0:#121417; --surface-1:#1a1d21; --surface-2:#232830;
+  --border:#2e343d; --border-strong:#3d454f;
+  --text-primary:#f2f6f9; --text-secondary:#aebecb; --text-muted:#7e909f;
+  --sky:#38b6f0; --sky-dark:#7dd3fc; --sky-pale:#16323f;
+  --pay-1:#3987e5; --pay-2:#d95926; --pay-3:#199e70; --pay-4:#c98500;
+  --seq:#3987e5; --seq-soft:#184f95;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;background:var(--surface-0);
+  color:var(--text-primary);min-height:100vh;-webkit-font-smoothing:antialiased;}
+button,input,select{font-family:inherit;}
+button{cursor:pointer;border:none;background:none;color:inherit;}
+h1,h2,h3{font-weight:700;letter-spacing:-.01em;}
+
+/* ── topo ───────────────────────────────────────── */
+.top{position:sticky;top:0;z-index:50;background:var(--surface-1);border-bottom:1px solid var(--border);
+  padding:0 24px;height:62px;display:flex;align-items:center;gap:18px;}
+.brand{display:flex;align-items:center;gap:10px;font-family:'Playfair Display',serif;font-size:19px;font-weight:600;white-space:nowrap;}
+.brand-mark{width:34px;height:34px;border-radius:9px;background:var(--sky-pale);display:grid;place-items:center;font-size:18px;}
+.top-spacer{flex:1;}
+.periodos{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:var(--radius-sm);}
+.per-btn{padding:7px 14px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--text-secondary);transition:.15s;white-space:nowrap;}
+.per-btn.active{background:var(--surface-1);color:var(--sky-dark);box-shadow:0 1px 3px rgba(15,34,51,.1);}
+.icon-btn{width:38px;height:38px;border-radius:var(--radius-sm);display:grid;place-items:center;font-size:16px;
+  border:1px solid var(--border);color:var(--text-secondary);transition:.15s;}
+.icon-btn:hover{border-color:var(--sky);color:var(--sky-dark);}
+.sync-pill{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;color:var(--text-muted);white-space:nowrap;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--good);flex-shrink:0;}
+.dot.off{background:var(--text-muted);} .dot.err{background:var(--critical);}
+.dot.live{animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+.wrap{max-width:1360px;margin:0 auto;padding:26px 24px 60px;}
+.sec-title{font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;margin:32px 0 12px;}
+.sec-title:first-child{margin-top:0;}
+
+/* ── números principais ─────────────────────────── */
+.hero-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;}
+.tile{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;box-shadow:var(--shadow);}
+.tile-lbl{font-size:11.5px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;}
+.tile-val{font-size:38px;font-weight:800;line-height:1.05;margin-top:8px;font-variant-numeric:tabular-nums;letter-spacing:-.03em;}
+.tile-val.money{color:var(--sky-dark);}
+.tile-sub{font-size:12px;color:var(--text-secondary);margin-top:6px;}
+
+/* ── gráficos ───────────────────────────────────── */
+.card{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);}
+.card-h{font-size:14.5px;font-weight:700;margin-bottom:4px;}
+.card-sub{font-size:12px;color:var(--text-muted);margin-bottom:18px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+
+/* barras horizontais por loja: série única, um só tom */
+.barrow{margin-bottom:16px;}
+.barrow:last-child{margin-bottom:0;}
+.barrow-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;gap:12px;}
+.barrow-name{font-size:13px;font-weight:600;}
+.barrow-val{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;}
+.bartrack{height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden;}
+.barfill{height:100%;background:var(--seq);border-radius:0 4px 4px 0;transition:width .4s ease;}
+
+/* barra empilhada de métodos: 2px de folga entre segmentos */
+.stack{display:flex;height:16px;border-radius:5px;overflow:hidden;gap:2px;background:var(--surface-2);margin-bottom:18px;}
+.stack-seg{height:100%;transition:width .4s ease;}
+.stack-seg:first-child{border-radius:5px 0 0 5px;}
+.stack-seg:last-child{border-radius:0 5px 5px 0;}
+.paylist{display:grid;gap:9px;}
+.payrow{display:flex;align-items:center;gap:10px;font-size:13px;}
+.chip{width:11px;height:11px;border-radius:3px;flex-shrink:0;}
+.payname{font-weight:600;flex:1;}
+.payval{font-weight:700;font-variant-numeric:tabular-nums;}
+.paypct{font-size:11.5px;color:var(--text-muted);font-variant-numeric:tabular-nums;min-width:42px;text-align:right;}
+
+/* ── lojas ──────────────────────────────────────── */
+.lojas{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px;}
+.loja{background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;}
+.loja-h{padding:18px 20px 14px;border-bottom:1px solid var(--border);}
+.loja-top{display:flex;align-items:center;gap:9px;margin-bottom:4px;}
+.loja-nome{font-size:16px;font-weight:700;flex:1;}
+.loja-estado{font-size:11px;font-weight:600;color:var(--text-muted);}
+.loja-turno{font-size:12px;color:var(--text-secondary);}
+.loja-body{padding:18px 20px;flex:1;}
+.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 12px;margin-bottom:18px;}
+.mini-lbl{font-size:10.5px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;}
+.mini-val{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:3px;letter-spacing:-.02em;}
+.mini-val.money{color:var(--sky-dark);}
+.mini-val.low{color:var(--warning);} .mini-val.out{color:var(--critical);}
+.alerta{display:flex;align-items:flex-start;gap:8px;font-size:12px;font-weight:600;padding:9px 11px;border-radius:9px;margin-top:9px;line-height:1.4;}
+.alerta.warn{background:color-mix(in srgb,var(--warning) 14%,transparent);color:var(--text-primary);}
+.alerta.crit{background:color-mix(in srgb,var(--critical) 13%,transparent);color:var(--text-primary);}
+
+/* ── tabela ─────────────────────────────────────── */
+.tabela{width:100%;border-collapse:collapse;font-size:13px;}
+.tabela th{text-align:right;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;
+  letter-spacing:.05em;padding:0 12px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}
+.tabela th:first-child,.tabela td:first-child{text-align:left;}
+.tabela td{padding:12px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;}
+.tabela tr:last-child td{border-bottom:none;}
+.tabela tfoot td{font-weight:700;border-top:2px solid var(--border-strong);border-bottom:none;}
+.tabela-wrap{overflow-x:auto;}
+
+/* ── config ─────────────────────────────────────── */
+.overlay{position:fixed;inset:0;background:rgba(10,20,30,.55);z-index:100;display:none;
+  align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;backdrop-filter:blur(3px);}
+.overlay.show{display:flex;}
+.modal{background:var(--surface-1);border-radius:var(--radius);width:100%;max-width:620px;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.modal-h{padding:22px 24px 16px;border-bottom:1px solid var(--border);}
+.modal-b{padding:22px 24px;}
+.modal-f{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:12px;font-weight:700;color:var(--text-secondary);margin-bottom:6px;}
+.field input,.field textarea{width:100%;background:var(--surface-0);border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  padding:11px 13px;font-size:13.5px;color:var(--text-primary);outline:none;transition:.15s;}
+.field input:focus,.field textarea:focus{border-color:var(--sky);}
+.field textarea{min-height:150px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;resize:vertical;}
+.hint{font-size:11.5px;color:var(--text-muted);margin-top:6px;line-height:1.5;}
+.btn{padding:11px 20px;border-radius:var(--radius-sm);font-size:13px;font-weight:700;transition:.15s;}
+.btn-primary{background:var(--sky);color:#fff;}
+.btn-primary:hover{filter:brightness(.93);}
+.btn-ghost{border:1.5px solid var(--border);color:var(--text-secondary);}
+.btn-ghost:hover{border-color:var(--border-strong);}
+.btn-danger{color:var(--critical);border:1.5px solid color-mix(in srgb,var(--critical) 35%,transparent);}
+.btn-danger:hover{background:color-mix(in srgb,var(--critical) 10%,transparent);}
+.loja-cfg{display:flex;align-items:center;gap:12px;padding:13px 15px;border:1px solid var(--border);
+  border-radius:var(--radius-sm);margin-bottom:9px;}
+.loja-cfg-info{flex:1;min-width:0;}
+.loja-cfg-nome{font-size:13.5px;font-weight:700;}
+.loja-cfg-id{font-size:11px;color:var(--text-muted);font-family:ui-monospace,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.vazio{text-align:center;padding:70px 20px;color:var(--text-muted);}
+.vazio-ico{font-size:46px;margin-bottom:14px;}
+.vazio h2{font-size:19px;color:var(--text-primary);margin-bottom:8px;}
+.vazio p{font-size:13.5px;max-width:440px;margin:0 auto 22px;line-height:1.6;}
+
+#tooltip{position:fixed;z-index:200;background:var(--text-primary);color:var(--surface-1);font-size:12px;
+  font-weight:600;padding:8px 11px;border-radius:8px;pointer-events:none;opacity:0;transition:opacity .12s;
+  white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.25);}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--text-primary);
+  color:var(--surface-1);padding:12px 20px;border-radius:11px;font-size:13px;font-weight:600;z-index:300;
+  opacity:0;transition:opacity .3s;pointer-events:none;}
+#toast.show{opacity:1;}
+
+@media(max-width:820px){
+  .top{padding:0 14px;height:auto;min-height:58px;flex-wrap:wrap;padding-bottom:10px;gap:10px;}
+  .brand span.bn{display:none;}
+  .wrap{padding:18px 14px 50px;}
+  .two-col{grid-template-columns:1fr;}
+  .periodos{order:3;width:100%;overflow-x:auto;}
+  .tile-val{font-size:31px;}
+}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="brand"><span class="brand-mark">🥐</span><span class="bn">Central de Controle</span></div>
+  <div class="top-spacer"></div>
+  <div class="periodos" id="periodos"></div>
+  <div class="sync-pill"><span class="dot live" id="syncDot"></span><span id="syncTxt">—</span></div>
+  <button class="icon-btn" onclick="exportarCSV()" title="Baixar CSV">⬇</button>
+  <button class="icon-btn" onclick="abrirConfig()" title="Lojas">⚙</button>
+</div>
+
+<div class="wrap" id="wrap"></div>
+
+<div class="overlay" id="cfgOverlay">
+  <div class="modal">
+    <div class="modal-h">
+      <h2 style="font-size:17px;">Lojas conectadas</h2>
+      <p style="font-size:12.5px;color:var(--text-muted);margin-top:4px;">Cada loja é um projeto Firebase próprio. O painel só lê — nunca escreve nada.</p>
+    </div>
+    <div class="modal-b">
+      <div id="cfgLista"></div>
+      <div id="cfgForm" style="display:none;border-top:1px solid var(--border);margin-top:18px;padding-top:18px;">
+        <div class="field">
+          <label>Nome da loja</label>
+          <input id="fNome" placeholder="Ex: Centro, Shopping, Feira" maxlength="40">
+        </div>
+        <div class="field">
+          <label>Configuração do Firebase</label>
+          <textarea id="fCfg" placeholder='Cole aqui o bloco do Firebase desta loja, por exemplo:
+
+const firebaseConfig = {
+  apiKey: "AIza...",
+  authDomain: "minha-loja.firebaseapp.com",
+  projectId: "minha-loja",
+  storageBucket: "minha-loja.firebasestorage.app",
+  messagingSenderId: "123456789",
+  appId: "1:123:web:abc"
+};'></textarea>
+          <div class="hint">Está no topo do arquivo do PDV dessa loja, depois de <code>const firebaseConfig =</code>. Pode colar o bloco inteiro — o painel entende.</div>
+        </div>
+        <div class="field">
+          <label>Caminho do documento (avançado)</label>
+          <input id="fPath" value="pdv/estado" placeholder="pdv/estado">
+          <div class="hint">Só mude se você tiver alterado onde o PDV guarda os dados.</div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-primary" onclick="salvarLoja()">Salvar loja</button>
+          <button class="btn btn-ghost" onclick="cancelarForm()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-f">
+      <button class="btn btn-ghost" onclick="exportarConfig()">Copiar configuração</button>
+      <button class="btn btn-ghost" onclick="importarConfig()">Colar configuração</button>
+      <button class="btn btn-primary" id="btnAddLoja" onclick="novaLoja()">+ Adicionar loja</button>
+      <button class="btn btn-ghost" onclick="fecharConfig()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+<div id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+// CENTRAL DE CONTROLE — lê o documento de cada PDV (um Firebase
+// por loja) e junta tudo numa página só. É SOMENTE LEITURA:
+// nada aqui escreve no Firestore de nenhuma loja.
+// ══════════════════════════════════════════════════════════════
+
+const LS_LOJAS='painel_churros_lojas_v1';
+const LS_PERIODO='painel_churros_periodo';
+const METODOS=[
+  {k:'pix',      nome:'Pix',      cor:'var(--pay-1)'},
+  {k:'debito',   nome:'Débito',   cor:'var(--pay-2)'},
+  {k:'credito',  nome:'Crédito',  cor:'var(--pay-3)'},
+  {k:'dinheiro', nome:'Dinheiro', cor:'var(--pay-4)'}
+];
+const PERIODOS=[
+  {k:'hoje',   nome:'Hoje'},
+  {k:'ontem',  nome:'Ontem'},
+  {k:'7dias',  nome:'7 dias'},
+  {k:'mes',    nome:'Este mês'},
+  {k:'tudo',   nome:'Tudo'}
+];
+
+let lojas=[];          // [{id,nome,cfg,path}]
+let dados={};          // id -> {estado:'ok'|'erro'|'conectando', doc, erro, ts}
+let periodo=localStorage.getItem(LS_PERIODO)||'hoje';
+let editandoId=null;
+
+// ── utilidades ────────────────────────────────────────────────
+const fN=v=>Number(v||0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d)(?=,))/g,'.');
+const fMoeda=v=>'R$ '+fN(v);
+const fInt=v=>Number(v||0).toLocaleString('pt-BR');
+const esc=s=>(s===null||s===undefined?'':String(s))
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+const uid=()=>'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);
+}
+
+// ── mesma matemática do PDV, para os números baterem ──────────
+// Quantos churros saem do estoque numa venda. O item guarda o
+// próprio tipo e quantos descontava na hora da venda, por isso o
+// número não muda se o produto for editado depois.
+function unidadesChurro(items,products){
+  return (items||[]).reduce((a,i)=>{
+    const p=(products||[]).find(x=>x.id===i.pid);
+    // O valor gravado na venda manda; o produto actual é só reserva
+    // para vendas antigas que não guardaram esses campos.
+    const tipo=i.type||(p?p.type:null)||'churro';
+    const mult=i.stockQty||(p?p.stockQty:null)||1;
+    return tipo==='churro'?a+i.qty*mult:a;
+  },0);
+}
+function estoqueDe(d){
+  const b=d.baseline||{};
+  const produzido=(b.churrosProduzidos||0)+
+    (d.stockEntries||[]).filter(e=>e.kind==='churro').reduce((a,e)=>a+(e.qty||0),0);
+  // o PDV ancora a contagem no momento da migração: as vendas
+  // anteriores já estavam somadas no contador antigo
+  const corte=d.migradoEm?Date.parse(d.migradoEm):0;
+  const vivas=(d.allSales||[]).filter(s=>!s.voided&&(!corte||Date.parse(s.dateISO)>=corte));
+  const vendido=(b.churrosVendidos||0)+vivas.reduce((a,s)=>a+unidadesChurro(s.items,d.products),0);
+  return Math.max(0,produzido-vendido);
+}
+
+function limitesPeriodo(){
+  const now=new Date();
+  const hoje=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  if(periodo==='hoje')  return [hoje,null];
+  if(periodo==='ontem') return [new Date(hoje.getTime()-86400000),hoje];
+  if(periodo==='7dias') return [new Date(hoje.getTime()-6*86400000),null];
+  if(periodo==='mes')   return [new Date(now.getFullYear(),now.getMonth(),1),null];
+  return [null,null];
+}
+function noPeriodo(iso){
+  if(!iso)return false;
+  const [de,ate]=limitesPeriodo();
+  const d=new Date(iso);
+  if(de&&d<de)return false;
+  if(ate&&d>=ate)return false;
+  return true;
+}
+
+function metricas(d){
+  const m={vendas:0,faturamento:0,churros:0,ticket:0,
+           metodos:{pix:0,debito:0,credito:0,dinheiro:0},
+           canceladas:0,valorCancelado:0,ajustes:0,churrosTirados:0,
+           estoque:estoqueDe(d),
+           turno:d.currentTurn||null};
+  (d.allSales||[]).forEach(s=>{
+    if(!noPeriodo(s.dateISO))return;
+    if(s.voided){ m.canceladas++; m.valorCancelado+=s.total||0; return; }
+    m.vendas++;
+    m.faturamento+=s.total||0;
+    m.churros+=unidadesChurro(s.items,d.products);
+    Object.entries(s.payDetail||{}).forEach(([k,v])=>{ if(m.metodos[k]!==undefined)m.metodos[k]+=v||0; });
+  });
+  // correções manuais de estoque no período — o sinal de alerta
+  (d.auditLog||[]).forEach(e=>{
+    if(e.tipo!=='estoque_ajuste'||!noPeriodo(e.dateISO))return;
+    m.ajustes++;
+    if((e.delta||0)<0)m.churrosTirados+=Math.abs(e.delta);
+  });
+  m.ticket=m.vendas?m.faturamento/m.vendas:0;
+  return m;
+}
+
+// ── ligação ao Firebase de cada loja ──────────────────────────
+const apps={},unsubs={};
+function ligarLoja(l){
+  if(unsubs[l.id]){ try{unsubs[l.id]();}catch(e){} delete unsubs[l.id]; }
+  dados[l.id]={estado:'conectando'};
+  let app;
+  try{
+    app=apps[l.id]||firebase.apps.find(a=>a.name===l.id)||firebase.initializeApp(l.cfg,l.id);
+    apps[l.id]=app;
+  }catch(e){
+    dados[l.id]={estado:'erro',erro:'Configuração inválida: '+e.message};
+    render();return;
+  }
+  const partes=(l.path||'pdv/estado').split('/').filter(Boolean);
+  if(partes.length<2||partes.length%2!==0){
+    dados[l.id]={estado:'erro',erro:'Caminho inválido: use coleção/documento'};
+    render();return;
+  }
+  try{
+    let ref=app.firestore();
+    for(let i=0;i<partes.length;i+=2)ref=ref.collection(partes[i]).doc(partes[i+1]);
+    unsubs[l.id]=ref.onSnapshot(
+      snap=>{
+        dados[l.id]=snap.exists
+          ? {estado:'ok',doc:snap.data(),ts:Date.now()}
+          : {estado:'erro',erro:'Documento não encontrado em '+(l.path||'pdv/estado')};
+        render();
+      },
+      err=>{
+        dados[l.id]={estado:'erro',erro:err.code==='permission-denied'
+          ? 'Sem permissão de leitura — revise as regras do Firestore desta loja'
+          : (err.message||'Erro de ligação')};
+        render();
+      });
+  }catch(e){
+    dados[l.id]={estado:'erro',erro:e.message};
+    render();
+  }
+}
+function ligarTudo(){ lojas.forEach(ligarLoja); }
+
+// ── desenho ───────────────────────────────────────────────────
+function tip(el,texto){
+  el.addEventListener('mouseenter',ev=>{
+    const t=document.getElementById('tooltip');
+    t.textContent=texto;t.style.opacity='1';
+    const r=el.getBoundingClientRect();
+    t.style.left=Math.min(window.innerWidth-t.offsetWidth-10,Math.max(8,r.left+r.width/2-t.offsetWidth/2))+'px';
+    t.style.top=Math.max(8,r.top-t.offsetHeight-8)+'px';
+  });
+  el.addEventListener('mouseleave',()=>{document.getElementById('tooltip').style.opacity='0';});
+}
+
+function render(){
+  renderPeriodos();
+  renderSync();
+  const w=document.getElementById('wrap');
+
+  if(!lojas.length){
+    w.innerHTML=`<div class="vazio">
+      <div class="vazio-ico">🏪</div>
+      <h2>Nenhuma loja conectada ainda</h2>
+      <p>Adicione cada ponto de venda com a configuração do Firebase dele. O painel passa a mostrar, lado a lado, quanto cada loja vendeu, quantos churros saíram, o estoque que resta e o dinheiro por forma de pagamento.</p>
+      <button class="btn btn-primary" onclick="abrirConfig();novaLoja();">+ Adicionar a primeira loja</button>
+    </div>`;
+    return;
+  }
+
+  const linhas=lojas.map(l=>{
+    const D=dados[l.id]||{estado:'conectando'};
+    return {loja:l,estado:D.estado,erro:D.erro,m:D.doc?metricas(D.doc):null};
+  });
+  const comDados=linhas.filter(r=>r.m);
+  const T={vendas:0,faturamento:0,churros:0,estoque:0,
+           metodos:{pix:0,debito:0,credito:0,dinheiro:0},canceladas:0,ajustes:0,churrosTirados:0};
+  comDados.forEach(r=>{
+    T.vendas+=r.m.vendas; T.faturamento+=r.m.faturamento; T.churros+=r.m.churros;
+    T.estoque+=r.m.estoque; T.canceladas+=r.m.canceladas;
+    T.ajustes+=r.m.ajustes; T.churrosTirados+=r.m.churrosTirados;
+    METODOS.forEach(x=>T.metodos[x.k]+=r.m.metodos[x.k]);
+  });
+  const ticket=T.vendas?T.faturamento/T.vendas:0;
+  const nomePer=(PERIODOS.find(p=>p.k===periodo)||{}).nome;
+
+  w.innerHTML=
+    `<div class="sec-title">Todas as lojas · ${esc(nomePer)}</div>
+     <div class="hero-grid">
+       <div class="tile"><div class="tile-lbl">Faturamento</div>
+         <div class="tile-val money">${fMoeda(T.faturamento)}</div>
+         <div class="tile-sub">${comDados.length} de ${lojas.length} loja${lojas.length!==1?'s':''} respondendo</div></div>
+       <div class="tile"><div class="tile-lbl">Vendas</div>
+         <div class="tile-val">${fInt(T.vendas)}</div>
+         <div class="tile-sub">ticket médio ${fMoeda(ticket)}</div></div>
+       <div class="tile"><div class="tile-lbl">Churros vendidos</div>
+         <div class="tile-val">${fInt(T.churros)}</div>
+         <div class="tile-sub">${T.vendas?(T.churros/T.vendas).toFixed(1).replace('.',','):'0'} por venda</div></div>
+       <div class="tile"><div class="tile-lbl">Estoque agora</div>
+         <div class="tile-val">${fInt(T.estoque)}</div>
+         <div class="tile-sub">churros crus somando as lojas</div></div>
+     </div>`
+    + `<div class="two-col" style="margin-top:16px;">
+         <div class="card">
+           <div class="card-h">Faturamento por loja</div>
+           <div class="card-sub">${esc(nomePer)}</div>
+           <div id="barLojas"></div>
+         </div>
+         <div class="card">
+           <div class="card-h">Entrada por forma de pagamento</div>
+           <div class="card-sub">${esc(nomePer)} · todas as lojas</div>
+           <div id="stackPag"></div>
+           <div class="paylist" id="listaPag"></div>
+         </div>
+       </div>`
+    + `<div class="sec-title">Loja por loja</div><div class="lojas" id="gridLojas"></div>`
+    + `<div class="sec-title">Comparativo</div>
+       <div class="card"><div class="tabela-wrap"><table class="tabela" id="tabela"></table></div></div>`;
+
+  desenharBarras(linhas);
+  desenharPagamentos(T);
+  desenharLojas(linhas);
+  desenharTabela(linhas,T,ticket);
+}
+
+function renderPeriodos(){
+  document.getElementById('periodos').innerHTML=PERIODOS.map(p=>
+    `<button class="per-btn${p.k===periodo?' active':''}" data-p="${p.k}">${p.nome}</button>`).join('');
+  document.querySelectorAll('.per-btn').forEach(b=>b.onclick=()=>{
+    periodo=b.dataset.p;localStorage.setItem(LS_PERIODO,periodo);render();
+  });
+}
+
+function renderSync(){
+  const dot=document.getElementById('syncDot'),txt=document.getElementById('syncTxt');
+  if(!lojas.length){ dot.className='dot off'; txt.textContent='sem lojas'; return; }
+  const est=lojas.map(l=>(dados[l.id]||{}).estado);
+  const erros=est.filter(e=>e==='erro').length;
+  const ok=est.filter(e=>e==='ok').length;
+  if(erros&&!ok){ dot.className='dot err'; txt.textContent=erros+' com erro'; }
+  else if(erros){ dot.className='dot live'; txt.textContent='ao vivo · '+erros+' com erro'; }
+  else if(ok===lojas.length){ dot.className='dot live'; txt.textContent='ao vivo'; }
+  else { dot.className='dot off'; txt.textContent='conectando…'; }
+}
+
+// Série única → um só tom. Sem legenda: o título já diz o que é.
+function desenharBarras(linhas){
+  const el=document.getElementById('barLojas');if(!el)return;
+  const com=linhas.filter(r=>r.m);
+  if(!com.length){el.innerHTML='<p style="font-size:13px;color:var(--text-muted);">Sem dados ainda.</p>';return;}
+  const max=Math.max(...com.map(r=>r.m.faturamento),1);
+  el.innerHTML=com.slice().sort((a,b)=>b.m.faturamento-a.m.faturamento).map(r=>
+    `<div class="barrow">
+       <div class="barrow-top">
+         <span class="barrow-name">${esc(r.loja.nome)}</span>
+         <span class="barrow-val">${fMoeda(r.m.faturamento)}</span>
+       </div>
+       <div class="bartrack"><div class="barfill" data-tip="${esc(r.loja.nome)}: ${fMoeda(r.m.faturamento)} · ${fInt(r.m.vendas)} vendas"
+            style="width:${Math.max(r.m.faturamento/max*100,r.m.faturamento>0?2:0)}%"></div></div>
+     </div>`).join('');
+  el.querySelectorAll('[data-tip]').forEach(b=>tip(b,b.dataset.tip));
+}
+
+// Empilhada com 2px de folga entre segmentos; cada método também
+// vem rotulado por extenso, para a cor nunca ser a única pista.
+function desenharPagamentos(T){
+  const total=METODOS.reduce((a,x)=>a+T.metodos[x.k],0);
+  const st=document.getElementById('stackPag'),li=document.getElementById('listaPag');
+  if(!st)return;
+  if(!total){
+    st.innerHTML='';
+    li.innerHTML='<p style="font-size:13px;color:var(--text-muted);">Nenhuma entrada neste período.</p>';
+    return;
+  }
+  st.innerHTML='<div class="stack">'+METODOS.filter(x=>T.metodos[x.k]>0).map(x=>
+    `<div class="stack-seg" data-tip="${x.nome}: ${fMoeda(T.metodos[x.k])}"
+      style="width:${T.metodos[x.k]/total*100}%;background:${x.cor};"></div>`).join('')+'</div>';
+  li.innerHTML=METODOS.map(x=>
+    `<div class="payrow">
+       <span class="chip" style="background:${x.cor}"></span>
+       <span class="payname">${x.nome}</span>
+       <span class="payval">${fMoeda(T.metodos[x.k])}</span>
+       <span class="paypct">${total?(T.metodos[x.k]/total*100).toFixed(0):0}%</span>
+     </div>`).join('');
+  st.querySelectorAll('[data-tip]').forEach(s=>tip(s,s.dataset.tip));
+}
+
+function desenharLojas(linhas){
+  const el=document.getElementById('gridLojas');if(!el)return;
+  el.innerHTML=linhas.map(r=>{
+    const l=r.loja;
+    if(!r.m){
+      const err=r.estado==='erro';
+      return `<div class="loja">
+        <div class="loja-h">
+          <div class="loja-top"><span class="dot ${err?'err':'off'}"></span>
+            <span class="loja-nome">${esc(l.nome)}</span></div>
+          <div class="loja-estado">${err?'Erro de ligação':'Conectando…'}</div>
+        </div>
+        <div class="loja-body">
+          <p style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;">${esc(r.erro||'Aguardando resposta do Firebase desta loja.')}</p>
+        </div></div>`;
+    }
+    const m=r.m;
+    const turno=m.turno
+      ? `🟢 ${esc(m.turno.func)} · aberto desde ${new Date(m.turno.abertura).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`
+      : '⚪ Caixa fechado';
+    const totalPag=METODOS.reduce((a,x)=>a+m.metodos[x.k],0);
+    const cls=m.estoque<=0?'out':m.estoque<10?'low':'';
+    let alertas='';
+    if(m.estoque<=0)alertas+=`<div class="alerta crit"><span>🚫</span><span>Sem estoque — não dá para vender</span></div>`;
+    else if(m.estoque<10)alertas+=`<div class="alerta warn"><span>⚠️</span><span>Estoque baixo: ${m.estoque} churros</span></div>`;
+    if(m.churrosTirados>0)alertas+=`<div class="alerta crit"><span>🔎</span><span>${m.churrosTirados} churros retirados à mão em ${m.ajustes} correção${m.ajustes!==1?'ões':''}</span></div>`;
+    else if(m.ajustes>0)alertas+=`<div class="alerta warn"><span>🔎</span><span>${m.ajustes} correção${m.ajustes!==1?'ões':''} de estoque no período</span></div>`;
+    if(m.canceladas>0)alertas+=`<div class="alerta warn"><span>🚫</span><span>${m.canceladas} venda${m.canceladas!==1?'s':''} cancelada${m.canceladas!==1?'s':''} · ${fMoeda(m.valorCancelado)}</span></div>`;
+
+    return `<div class="loja">
+      <div class="loja-h">
+        <div class="loja-top"><span class="dot live"></span><span class="loja-nome">${esc(l.nome)}</span></div>
+        <div class="loja-turno">${turno}</div>
+      </div>
+      <div class="loja-body">
+        <div class="mini-grid">
+          <div><div class="mini-lbl">Faturamento</div><div class="mini-val money">${fMoeda(m.faturamento)}</div></div>
+          <div><div class="mini-lbl">Vendas</div><div class="mini-val">${fInt(m.vendas)}</div></div>
+          <div><div class="mini-lbl">Churros vendidos</div><div class="mini-val">${fInt(m.churros)}</div></div>
+          <div><div class="mini-lbl">Estoque agora</div><div class="mini-val ${cls}">${fInt(m.estoque)}</div></div>
+        </div>
+        ${totalPag?'<div class="stack">'+METODOS.filter(x=>m.metodos[x.k]>0).map(x=>
+            `<div class="stack-seg" style="width:${m.metodos[x.k]/totalPag*100}%;background:${x.cor};"></div>`).join('')+'</div>':''}
+        <div class="paylist">${METODOS.filter(x=>m.metodos[x.k]>0).map(x=>
+          `<div class="payrow"><span class="chip" style="background:${x.cor}"></span>
+            <span class="payname">${x.nome}</span><span class="payval">${fMoeda(m.metodos[x.k])}</span></div>`).join('')
+          ||'<span style="font-size:12.5px;color:var(--text-muted);">Nenhuma entrada no período.</span>'}</div>
+        ${alertas}
+      </div></div>`;
+  }).join('');
+}
+
+function desenharTabela(linhas,T,ticket){
+  const t=document.getElementById('tabela');if(!t)return;
+  t.innerHTML=
+    `<thead><tr><th>Loja</th><th>Faturamento</th><th>Vendas</th><th>Ticket</th><th>Churros</th>
+      ${METODOS.map(x=>`<th>${x.nome}</th>`).join('')}<th>Estoque</th></tr></thead>
+     <tbody>${linhas.map(r=>{
+       if(!r.m)return `<tr><td>${esc(r.loja.nome)}</td><td colspan="${6+METODOS.length}" style="text-align:left;color:var(--text-muted);">${esc(r.erro||'conectando…')}</td></tr>`;
+       return `<tr><td style="font-weight:600;">${esc(r.loja.nome)}</td>
+         <td>${fMoeda(r.m.faturamento)}</td><td>${fInt(r.m.vendas)}</td>
+         <td>${fMoeda(r.m.ticket)}</td><td>${fInt(r.m.churros)}</td>
+         ${METODOS.map(x=>`<td>${fMoeda(r.m.metodos[x.k])}</td>`).join('')}
+         <td>${fInt(r.m.estoque)}</td></tr>`;
+     }).join('')}</tbody>
+     <tfoot><tr><td>Total</td><td>${fMoeda(T.faturamento)}</td><td>${fInt(T.vendas)}</td>
+       <td>${fMoeda(ticket)}</td><td>${fInt(T.churros)}</td>
+       ${METODOS.map(x=>`<td>${fMoeda(T.metodos[x.k])}</td>`).join('')}
+       <td>${fInt(T.estoque)}</td></tr></tfoot>`;
+}
+
+function exportarCSV(){
+  if(!lojas.length){toast('⚠️ Nenhuma loja conectada.');return;}
+  const q=v=>'"'+String(v===undefined||v===null?'':v).replace(/"/g,'""')+'"';
+  const head=['Loja','Período','Faturamento','Vendas','Ticket médio','Churros vendidos',
+              ...METODOS.map(x=>x.nome),'Estoque agora','Vendas canceladas','Valor cancelado',
+              'Correções de estoque','Churros retirados à mão'];
+  const rows=lojas.map(l=>{
+    const D=dados[l.id]||{};
+    if(!D.doc)return [l.nome,periodo,'sem dados'].map(q).join(',');
+    const m=metricas(D.doc);
+    return [l.nome,(PERIODOS.find(p=>p.k===periodo)||{}).nome,fN(m.faturamento),m.vendas,fN(m.ticket),m.churros,
+            ...METODOS.map(x=>fN(m.metodos[x.k])),m.estoque,m.canceladas,fN(m.valorCancelado),
+            m.ajustes,m.churrosTirados].map(q).join(',');
+  }).join('\n');
+  const blob=new Blob(['﻿'+head.map(q).join(',')+'\n'+rows],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='churros_lojas_'+periodo+'_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+  toast('✅ CSV baixado');
+}
+
+// ── configuração das lojas ────────────────────────────────────
+function carregarLojas(){
+  try{ lojas=JSON.parse(localStorage.getItem(LS_LOJAS)||'[]'); }catch(e){ lojas=[]; }
+  if(!Array.isArray(lojas))lojas=[];
+}
+function guardarLojas(){ try{ localStorage.setItem(LS_LOJAS,JSON.stringify(lojas)); }catch(e){} }
+
+// Aceita JSON ou o bloco JavaScript colado direto do arquivo do PDV.
+function lerConfig(txt){
+  let s=(txt||'').trim();
+  if(!s)throw new Error('Cole a configuração do Firebase.');
+  s=s.replace(/^[\s\S]*?firebaseConfig\s*=\s*/,'').replace(/;[\s\S]*$/,'').trim();
+  const i=s.indexOf('{'),f=s.lastIndexOf('}');
+  if(i<0||f<0)throw new Error('Não encontrei as chaves { } da configuração.');
+  s=s.slice(i,f+1);
+  let cfg;
+  try{ cfg=JSON.parse(s); }
+  catch(e){
+    // formato JS: chaves sem aspas, aspas simples, vírgula sobrando
+    const j=s.replace(/\/\/[^\n]*/g,'')
+             .replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g,'$1"$2":')
+             .replace(/'/g,'"')
+             .replace(/,(\s*[}\]])/g,'$1');
+    try{ cfg=JSON.parse(j); }catch(e2){ throw new Error('Não consegui ler a configuração. Cole o bloco completo, das chaves { até }.'); }
+  }
+  if(!cfg.projectId)throw new Error('Falta o projectId na configuração.');
+  if(!cfg.apiKey)throw new Error('Falta a apiKey na configuração.');
+  return cfg;
+}
+
+function abrirConfig(){ document.getElementById('cfgOverlay').classList.add('show'); renderCfg(); }
+function fecharConfig(){ document.getElementById('cfgOverlay').classList.remove('show'); cancelarForm(); }
+function renderCfg(){
+  const el=document.getElementById('cfgLista');
+  el.innerHTML=lojas.length?lojas.map(l=>{
+    const D=dados[l.id]||{};
+    const cor=D.estado==='ok'?'live':D.estado==='erro'?'err':'off';
+    return `<div class="loja-cfg">
+      <span class="dot ${cor}"></span>
+      <div class="loja-cfg-info">
+        <div class="loja-cfg-nome">${esc(l.nome)}</div>
+        <div class="loja-cfg-id">${esc(l.cfg.projectId)} · ${esc(l.path||'pdv/estado')}</div>
+      </div>
+      <button class="btn btn-ghost" style="padding:7px 12px;" onclick="editarLoja('${l.id}')">Editar</button>
+      <button class="btn btn-danger" style="padding:7px 12px;" onclick="removerLoja('${l.id}')">Remover</button>
+    </div>`;
+  }).join(''):'<p style="font-size:13px;color:var(--text-muted);">Nenhuma loja ainda.</p>';
+}
+function novaLoja(){
+  editandoId=null;
+  document.getElementById('fNome').value='';
+  document.getElementById('fCfg').value='';
+  document.getElementById('fPath').value='pdv/estado';
+  document.getElementById('cfgForm').style.display='block';
+  document.getElementById('btnAddLoja').style.display='none';
+  document.getElementById('fNome').focus();
+}
+function editarLoja(id){
+  const l=lojas.find(x=>x.id===id);if(!l)return;
+  editandoId=id;
+  document.getElementById('fNome').value=l.nome;
+  document.getElementById('fCfg').value=JSON.stringify(l.cfg,null,2);
+  document.getElementById('fPath').value=l.path||'pdv/estado';
+  document.getElementById('cfgForm').style.display='block';
+  document.getElementById('btnAddLoja').style.display='none';
+}
+function cancelarForm(){
+  editandoId=null;
+  document.getElementById('cfgForm').style.display='none';
+  document.getElementById('btnAddLoja').style.display='';
+}
+function salvarLoja(){
+  const nome=document.getElementById('fNome').value.trim().slice(0,40);
+  const path=document.getElementById('fPath').value.trim()||'pdv/estado';
+  if(!nome){toast('⚠️ Dê um nome à loja.');return;}
+  let cfg;
+  try{ cfg=lerConfig(document.getElementById('fCfg').value); }
+  catch(e){ toast('⚠️ '+e.message); return; }
+  const repetida=lojas.find(l=>l.cfg.projectId===cfg.projectId&&(l.path||'pdv/estado')===path&&l.id!==editandoId);
+  if(repetida&&!confirm('Já existe uma loja ligada a "'+cfg.projectId+'" no mesmo caminho ('+repetida.nome+').\n\nAdicionar mesmo assim?'))return;
+
+  if(editandoId){
+    const l=lojas.find(x=>x.id===editandoId);
+    // trocar de projeto exige uma app nova: o SDK não deixa reconfigurar
+    const mudouProjeto=l.cfg.projectId!==cfg.projectId;
+    Object.assign(l,{nome,cfg,path});
+    if(mudouProjeto){
+      if(unsubs[l.id]){try{unsubs[l.id]();}catch(e){} delete unsubs[l.id];}
+      delete apps[l.id];
+      const antigo=l.id; l.id=uid();
+      dados[l.id]=dados[antigo]; delete dados[antigo];
+    }
+    guardarLojas(); ligarLoja(l); toast('✅ '+nome+' atualizada');
+  }else{
+    const l={id:uid(),nome,cfg,path};
+    lojas.push(l); guardarLojas(); ligarLoja(l); toast('✅ '+nome+' conectada');
+  }
+  cancelarForm(); renderCfg(); render();
+}
+function removerLoja(id){
+  const l=lojas.find(x=>x.id===id);if(!l)return;
+  if(!confirm('Remover "'+l.nome+'" do painel?\n\nIsto só tira a loja desta tela — nada é apagado no PDV nem no Firebase dela.'))return;
+  if(unsubs[id]){try{unsubs[id]();}catch(e){} delete unsubs[id];}
+  delete apps[id]; delete dados[id];
+  lojas=lojas.filter(x=>x.id!==id);
+  guardarLojas(); renderCfg(); render();
+  toast('🗑 '+l.nome+' removida');
+}
+function exportarConfig(){
+  if(!lojas.length){toast('⚠️ Nenhuma loja para copiar.');return;}
+  const txt=JSON.stringify(lojas.map(l=>({nome:l.nome,cfg:l.cfg,path:l.path||'pdv/estado'})),null,2);
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(()=>toast('✅ Configuração copiada — cole no outro aparelho'))
+      .catch(()=>prompt('Copie este texto:',txt));
+  }else prompt('Copie este texto:',txt);
+}
+function importarConfig(){
+  const txt=prompt('Cole aqui a configuração copiada do outro aparelho:');
+  if(!txt)return;
+  let arr;
+  try{ arr=JSON.parse(txt); }catch(e){ toast('⚠️ Texto inválido.'); return; }
+  if(!Array.isArray(arr)){toast('⚠️ Esperava uma lista de lojas.');return;}
+  let n=0;
+  arr.forEach(x=>{
+    if(!x||!x.nome||!x.cfg||!x.cfg.projectId)return;
+    if(lojas.some(l=>l.cfg.projectId===x.cfg.projectId&&(l.path||'pdv/estado')===(x.path||'pdv/estado')))return;
+    const l={id:uid(),nome:String(x.nome).slice(0,40),cfg:x.cfg,path:x.path||'pdv/estado'};
+    lojas.push(l); ligarLoja(l); n++;
+  });
+  guardarLojas(); renderCfg(); render();
+  toast(n?('✅ '+n+' loja'+(n!==1?'s':'')+' adicionada'+(n!==1?'s':'')):'Nada novo para adicionar');
+}
+
+// ── arranque ──────────────────────────────────────────────────
+document.getElementById('cfgOverlay').addEventListener('click',e=>{
+  if(e.target.id==='cfgOverlay')fecharConfig();
+});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape')fecharConfig(); });
+
+carregarLojas();
+render();
+if(typeof firebase==='undefined'){
+  document.getElementById('wrap').innerHTML=
+    `<div class="vazio"><div class="vazio-ico">📡</div><h2>Sem ligação</h2>
+     <p>Não foi possível carregar o Firebase. Verifique a internet e recarregue a página.</p>
+     <button class="btn btn-primary" onclick="location.reload()">Tentar de novo</button></div>`;
+}else{
+  ligarTudo();
+  // o dia vira: o filtro "Hoje" tem de acompanhar
+  let diaAtual=new Date().getDate();
+  setInterval(()=>{
+    const d=new Date().getDate();
+    if(d!==diaAtual){ diaAtual=d; render(); }
+  },60000);
+}
+</script>
+</body>
+</html>
