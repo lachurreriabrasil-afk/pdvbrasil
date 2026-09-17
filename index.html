@@ -1049,8 +1049,11 @@ const LOG_ICONE={
 function unidadesChurro(items){
   return (items||[]).reduce((a,i)=>{
     const p=getProd(i.pid);
-    const tipo=(p?p.type:i.type)||'churro';   // churro é o único tipo que resta
-    const mult=p?(p.stockQty||1):(i.stockQty||1);
+    // O que vale é o que ficou gravado NA VENDA. Se mandasse o produto
+    // actual, mudar o desconto de uma promoção reescrevia o histórico e
+    // mexia no estoque de hoje sem ninguém tocar no estoque.
+    const tipo=i.type||(p?p.type:null)||'churro';
+    const mult=i.stockQty||(p?p.stockQty:null)||1;
     return tipo==='churro'?a+i.qty*mult:a;
   },0);
 }
